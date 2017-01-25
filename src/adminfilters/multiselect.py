@@ -1,4 +1,4 @@
-from django.contrib.admin.filters import FieldListFilter
+from django.contrib.admin.filters import FieldListFilter, AllValuesFieldListFilter
 from django.db.models.fields import AutoField, IntegerField
 from django.utils.translation import ugettext_lazy as _
 
@@ -96,3 +96,28 @@ class UnionFieldListFilter(MultipleSelectFieldListFilter):
             return queryset.filter(**filter_dct)
         else:
             return queryset
+
+
+class UnionFieldListFilterField(AllValuesFieldListFilter):
+
+    def values(self):
+        values = []
+        value = self.used_parameters.get(self.lookup_kwarg, None)
+        if value:
+            values = value.split(',')
+        return values
+
+    def queryset(self, request, queryset):
+        filter_values = self.values()
+        filter_statement = "%s__in" % self.field_path
+        filter_dct = {
+            filter_statement: filter_values
+        }
+
+        if filter_values:
+            return queryset.filter(**filter_dct)
+
+        try:
+            return queryset.filter(**self.used_parameters)
+        except ValidationError as e:
+            raise IncorrectLookupParameters(e)
